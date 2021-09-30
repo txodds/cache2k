@@ -9,9 +9,9 @@ package org.cache2k.test.core;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -138,6 +138,7 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
       .permitNullValues(true)
       .keepDataAfterExpired(pars.keepDataAfterExpired)
       .recordModificationTime(pars.recordRefreshTime)
+      .preserveNonExpired(pars.preserveNonExpired)
       .disableStatistics(pars.disableStatistics);
     if (pars.keepExceptions) {
         b.resiliencePolicy(Constants.resilienceCacheExceptions());
@@ -1505,6 +1506,7 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
     boolean keepExceptions = false;
     boolean useObjectKey = false;
     boolean withExpiryListener = false;
+    boolean preserveNonExpired = false;
 
     @Override
     public boolean equals(Object o) {
@@ -1523,7 +1525,9 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
       if (keepExceptions != pars.keepExceptions) return false;
       if (withExpiryAfterWrite != pars.withExpiryAfterWrite) return false;
       if (useObjectKey != pars.useObjectKey) return false;
-      return withExpiryListener == pars.withExpiryListener;
+      if (withExpiryAfterWrite != pars.withExpiryAfterWrite) return false;
+      if (preserveNonExpired != pars.preserveNonExpired) return false;
+      return true;
     }
 
     @Override
@@ -1539,6 +1543,7 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
       result = 31 * result + (withExpiryAfterWrite ? 1 : 0);
       result = 31 * result + (useObjectKey ? 1 : 0);
       result = 31 * result + (withExpiryListener ? 1 : 0);
+      result = 31 * result + (preserveNonExpired ? 1 : 0);
       return result;
     }
 
@@ -1555,7 +1560,8 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
         ", keepExceptions=" + keepExceptions +
         ", expiry=" + withExpiryAfterWrite +
         ", useObjectKey=" + useObjectKey +
-        ", withExpiryListener=" + withExpiryListener;
+        ", withExpiryListener=" + withExpiryListener +
+        ", preserveNonExpired=" + preserveNonExpired;
     }
 
     @SuppressWarnings({"SameParameterValue"})
@@ -1609,6 +1615,10 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
         pars.withExpiryListener = v; return this;
       }
 
+      public Builder withPreserveNonExpired(boolean v) {
+        pars.preserveNonExpired = v; return this;
+      }
+
     }
 
   }
@@ -1627,6 +1637,7 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
             .keepDataAfterExpired(nextBoolean())
             .keepExceptions(nextBoolean())
             .withExpiryAfterWrite(nextBoolean())
+            .withPreserveNonExpired(nextBoolean())
             .build();
         }
 
@@ -1637,6 +1648,7 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
       add(pars().useObjectKey(true).withWiredCache(true).build());
       add(pars().withForwardingAndAbstract(true).build());
       add(pars().withExpiryListener(true).build());
+      add(pars().withPreserveNonExpired(true).build());
       add(pars().strictEviction(true).build());
     }
 

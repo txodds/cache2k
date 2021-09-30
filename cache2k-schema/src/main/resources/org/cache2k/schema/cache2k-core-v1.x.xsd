@@ -298,6 +298,13 @@
           </xs:documentation>
         </xs:annotation>
       </xs:element>
+      <xs:element name="preserveNonExpired" type="xs:string" minOccurs="0" default="false">
+        <xs:annotation>
+          <xs:documentation>
+            Preserve non expired data when running cache eviction
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
       <xs:element name="expireAfterWrite" type="xs:string" minOccurs="0">
         <xs:annotation>
           <xs:documentation>

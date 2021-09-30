@@ -9,9 +9,9 @@ package org.cache2k.core.eviction;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -69,6 +69,7 @@ public class ClockProPlusEviction extends AbstractEviction {
   private int ghostSize = 0;
   private long hotMax = Long.MAX_VALUE;
   private long ghostMax = Long.MAX_VALUE;
+  private boolean preserveNonExpired = false;
 
   private static final int GHOST_LOAD_PERCENT;
   private static final int HOT_MAX_PERCENTAGE;
@@ -85,7 +86,7 @@ public class ClockProPlusEviction extends AbstractEviction {
 
   public ClockProPlusEviction(HeapCacheForEviction heapCache, InternalEvictionListener listener,
                               long maxSize, Weigher weigher, long maxWeight,
-                              boolean noChunking) {
+                              boolean noChunking, boolean preserveNonExpired) {
     super(heapCache, listener, maxSize, weigher, maxWeight, noChunking);
 
     coldSize = 0;
@@ -93,6 +94,7 @@ public class ClockProPlusEviction extends AbstractEviction {
     handCold = null;
     handHot = null;
     ghosts = new Ghost[4];
+    this.preserveNonExpired = preserveNonExpired;
   }
 
   private long sumUpListHits(Entry e) {
@@ -256,7 +258,8 @@ public class ClockProPlusEviction extends AbstractEviction {
   private Entry runHandHot() {
     hotRunCnt++;
     Entry hand = handHot;
-    Entry coldCandidate = hand;
+    Entry coldCandidate = null;
+    if (!preserveNonExpired) coldCandidate = hand;
     long lowestHits = Long.MAX_VALUE;
     long hotHits = this.hotHits;
     int initialMaxScan = (hotSize >> 2) + 1;
@@ -265,12 +268,14 @@ public class ClockProPlusEviction extends AbstractEviction {
       ((hand.hitCnt + hand.next.hitCnt) >> HIT_COUNTER_DECREASE_SHIFT) + 1;
     while (maxScan-- > 0) {
       long hitCnt = hand.hitCnt;
-      if (hitCnt < lowestHits) {
-        lowestHits = hitCnt;
-        coldCandidate = hand;
-        if (hitCnt == 0) {
-          hand = hand.next;
-          break;
+      if (!(preserveNonExpired && hand.isDataAvailable())) {
+        if (hitCnt < lowestHits) {
+          lowestHits = hitCnt;
+          coldCandidate = hand;
+          if (hitCnt == 0) {
+            hand = hand.next;
+            break;
+          }
         }
       }
       if (hitCnt < decrease) {
@@ -328,6 +333,9 @@ public class ClockProPlusEviction extends AbstractEviction {
       return runHandHot();
     }
     handCold = hand.next;
+    if (preserveNonExpired && hand.isDataAvailable()) {
+      return null;
+    }
     return hand;
   }
 

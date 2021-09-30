@@ -9,9 +9,9 @@ package org.cache2k.config;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -102,6 +102,7 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
   private boolean permitNullValues = false;
   private boolean recordModificationTime = false;
   private boolean boostConcurrency = false;
+  private boolean preserveNonExpired = false;
 
   private boolean disableStatistics = false;
   private boolean disableMonitoring = false;
@@ -571,6 +572,20 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
    */
   public void setStrictEviction(boolean v) {
     strictEviction = v;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveNonExpired(boolean)
+   */
+  public boolean isPreserveNonExpired() {
+    return preserveNonExpired;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveNonExpired(boolean)
+   */
+  public void setPreserveNonExpired(boolean v) {
+    preserveNonExpired = v;
   }
 
   public boolean isPermitNullValues() {

@@ -9,9 +9,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -291,7 +291,19 @@ public abstract class AbstractEviction implements Eviction, EvictionMetrics {
     }
     evictionRunningCount += chunk.length;
     for (int i = 0; i < chunk.length; i++) {
-      chunk[i] = findEvictionCandidate();
+      Entry e = findEvictionCandidate();
+      if (e != null) {
+        chunk[i] = e;
+      } else {
+        if (i == 0) {
+          return null;
+        } else {
+          for (int j = i; j < chunk.length; j++) {
+            chunk[i] = null;
+          }
+          return chunk;
+        }
+      }
     }
     return chunk;
   }
@@ -339,14 +351,16 @@ public abstract class AbstractEviction implements Eviction, EvictionMetrics {
     int processCount = 0;
     for (int i = 0; i < chunk.length; i++) {
       Entry e = chunk[i];
-      synchronized (e) {
-        if (e.isGone() || e.isProcessing()) {
-          chunk[i] = null;
-          continue;
+      if (e != null) {
+        synchronized (e) {
+          if (e.isGone() || e.isProcessing()) {
+            chunk[i] = null;
+            continue;
+          }
+          heapCache.removeEntryForEviction(e);
         }
-        heapCache.removeEntryForEviction(e);
+        processCount++;
       }
-      processCount++;
     }
     return processCount;
   }
@@ -360,18 +374,21 @@ public abstract class AbstractEviction implements Eviction, EvictionMetrics {
     int processCount = 0;
     for (int i = 0; i < chunk.length; i++) {
       Entry e = chunk[i];
-      synchronized (e) {
-        if (e.isGone() || e.isProcessing()) {
-          chunk[i] = null; continue;
+      if (e != null) {
+        synchronized (e) {
+          if (e.isGone() || e.isProcessing()) {
+            chunk[i] = null;
+            continue;
+          }
+          e.startProcessing(Entry.ProcessingState.EVICT, null);
         }
-        e.startProcessing(Entry.ProcessingState.EVICT, null);
+        listener.onEvictionFromHeap(e);
+        synchronized (e) {
+          e.processingDone();
+          heapCache.removeEntryForEviction(e);
+        }
+        processCount++;
       }
-      listener.onEvictionFromHeap(e);
-      synchronized (e) {
-        e.processingDone();
-        heapCache.removeEntryForEviction(e);
-      }
-      processCount++;
     }
     return processCount;
   }
