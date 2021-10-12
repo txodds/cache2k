@@ -53,6 +53,9 @@
       <boostConcurrency>true</boostConcurrency>
       <eternal>false</eternal>
       <preserveNonExpired>false</preserveNonExpired>
+      <preserveNonExpiredCapacityLimit>24</preserveNonExpiredCapacityLimit>
+      <preserveYoungerThan>6</preserveYoungerThan>
+      <preserveYoungerThanCapacityLimit>24</preserveYoungerThanCapacityLimit>
       <loader>
         <bean>
           <type>org.cache2k.config.CustomizationSupplierByClassName</type>

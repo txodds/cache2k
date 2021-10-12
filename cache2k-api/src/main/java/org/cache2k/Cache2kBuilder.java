@@ -592,6 +592,31 @@ public class Cache2kBuilder<K, V>
   }
 
   /**
+   * Disable preserving non expired when this capacity has been reached. (0 disables the check)
+   */
+  public final Cache2kBuilder<K, V> preserveNonExpiredCapacityLimit(long f) {
+    cfg().setPreserveNonExpiredCapacityLimit(f);
+    return this;
+  }
+
+  /**
+   * Preserve entries that had updates within the given millis. Requires recordModificationTime(true)
+   */
+  public final Cache2kBuilder<K, V> preserveYoungerThan(long f) {
+    cfg().setPreserveYoungerThan(f);
+    return this;
+  }
+
+  /**
+   * Disable preserving young entries when this capacity has been reached. (0 disables the check)
+   */
+  public final Cache2kBuilder<K, V> preserveYoungerThanCapacityLimit(long f) {
+    cfg().setPreserveYoungerThanCapacityLimit(f);
+    return this;
+  }
+
+
+  /**
    * If no separate executor is set via {@link #loaderExecutor(Executor)} the cache will
    * create a separate thread pool used exclusively by it. Defines the maximum number of threads
    * this cache should use for calls to the {@link CacheLoader}. The default is one thread

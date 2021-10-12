@@ -103,6 +103,9 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
   private boolean recordModificationTime = false;
   private boolean boostConcurrency = false;
   private boolean preserveNonExpired = false;
+  private long preserveNonExpiredCapacityLimit = 0;
+  private long preserveYoungerThan = 0;
+  private long preserveYoungerThanCapacityLimit = 0;
 
   private boolean disableStatistics = false;
   private boolean disableMonitoring = false;
@@ -166,7 +169,9 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
   /**
    * @see Cache2kBuilder#name(String)
    */
-  public @Nullable String getName() { return name; }
+  public @Nullable String getName() {
+    return name;
+  }
 
   /**
    *
@@ -364,8 +369,7 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
   /**
    * @see Cache2kBuilder#loader(AdvancedCacheLoader)
    */
-  public void setAdvancedLoader(
-    @Nullable CustomizationSupplier<? extends AdvancedCacheLoader<K, V>> v) {
+  public void setAdvancedLoader(@Nullable CustomizationSupplier<? extends AdvancedCacheLoader<K, V>> v) {
     advancedLoader = v;
   }
 
@@ -391,13 +395,11 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
     loaderThreadCount = v;
   }
 
-  public @Nullable
-    CustomizationSupplier<? extends ExpiryPolicy<? super K, ? super V>> getExpiryPolicy() {
+  public @Nullable CustomizationSupplier<? extends ExpiryPolicy<? super K, ? super V>> getExpiryPolicy() {
     return expiryPolicy;
   }
 
-  public void setExpiryPolicy(
-    @Nullable CustomizationSupplier<? extends ExpiryPolicy<? super K, ? super V>> v) {
+  public void setExpiryPolicy(@Nullable CustomizationSupplier<? extends ExpiryPolicy<? super K, ? super V>> v) {
     expiryPolicy = v;
   }
 
@@ -423,8 +425,7 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
     storeByReference = v;
   }
 
-  public @Nullable CustomizationSupplier<? extends ExceptionPropagator<? super K, ? super V>>
-    getExceptionPropagator() {
+  public @Nullable CustomizationSupplier<? extends ExceptionPropagator<? super K, ? super V>> getExceptionPropagator() {
     return exceptionPropagator;
   }
 
@@ -586,6 +587,48 @@ public class Cache2kConfig<K, V> implements ConfigBean<Cache2kConfig<K, V>, Cach
    */
   public void setPreserveNonExpired(boolean v) {
     preserveNonExpired = v;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveNonExpiredCapacityLimit(long)
+   */
+  public long getPreserveNonExpiredCapacityLimit() {
+    return preserveNonExpiredCapacityLimit;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveNonExpiredCapacityLimit(long)
+   */
+  public void setPreserveNonExpiredCapacityLimit(long v) {
+    preserveNonExpiredCapacityLimit = v;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveYoungerThan(long)
+   */
+  public long getPreserveYoungerThan() {
+    return preserveYoungerThan;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveYoungerThan(long)
+   */
+  public void setPreserveYoungerThan(long v) {
+    preserveYoungerThan = v;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveYoungerThanCapacityLimit(long)
+   */
+  public long getPreserveYoungerThanCapacityLimit() {
+    return preserveYoungerThanCapacityLimit;
+  }
+
+  /**
+   * @see Cache2kBuilder#preserveYoungerThanCapacityLimit(long)
+   */
+  public void setPreserveYoungerThanCapacityLimit(long v) {
+    preserveYoungerThanCapacityLimit = v;
   }
 
   public boolean isPermitNullValues() {

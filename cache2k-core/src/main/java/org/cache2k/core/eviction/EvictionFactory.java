@@ -48,8 +48,7 @@ public class EvictionFactory {
     if (config.getWeigher() != null) {
       weigher = (Weigher) customizationContext.createCustomization(config.getWeigher());
       if (maximumWeight <= 0) {
-        throw new IllegalArgumentException(
-          "maximumWeight > 0 expected. Weigher requires to set maximumWeight");
+        throw new IllegalArgumentException("maximumWeight > 0 expected. Weigher requires to set maximumWeight");
       }
       entryCapacity = -1;
     } else {
@@ -61,15 +60,15 @@ public class EvictionFactory {
       }
     }
     int segmentCountOverride = HeapCache.TUNABLE.segmentCountOverride;
-    int segmentCount =
-      EvictionFactory.determineSegmentCount(
-        strictEviction, availableProcessors,
-        boostConcurrency, entryCapacity, maximumWeight, segmentCountOverride);
+    int segmentCount = EvictionFactory.determineSegmentCount(strictEviction, availableProcessors, boostConcurrency,
+        entryCapacity, maximumWeight, segmentCountOverride);
     Eviction[] segments = new Eviction[segmentCount];
     long maxSize = EvictionFactory.determineMaxSize(entryCapacity, segmentCount);
     long maxWeight = EvictionFactory.determineMaxWeight(maximumWeight, segmentCount);
     for (int i = 0; i < segments.length; i++) {
-      Eviction ev = new ClockProPlusEviction(hc, l, maxSize, weigher, maxWeight, strictEviction, config.isPreserveNonExpired());
+      Eviction ev = new ClockProPlusEviction(hc, l, maxSize, weigher, maxWeight, strictEviction,
+          config.isPreserveNonExpired(), config.getPreserveNonExpiredCapacityLimit(), config.getPreserveYoungerThan(),
+          config.getPreserveYoungerThanCapacityLimit(), customizationContext.getTimeReference());
       segments[i] = ev;
     }
     if (segmentCount == 1) {
@@ -105,9 +104,8 @@ public class EvictionFactory {
     return maxWeight;
   }
 
-  public static int determineSegmentCount(boolean strictEviction, int availableProcessors,
-                                          boolean boostConcurrency, long entryCapacity,
-                                          long maxWeight, int segmentCountOverride) {
+  public static int determineSegmentCount(boolean strictEviction, int availableProcessors, boolean boostConcurrency,
+      long entryCapacity, long maxWeight, int segmentCountOverride) {
     if (strictEviction) {
       return 1;
     }

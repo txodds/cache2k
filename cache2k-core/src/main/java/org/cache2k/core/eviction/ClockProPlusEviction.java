@@ -25,6 +25,7 @@ import org.cache2k.core.Entry;
 import org.cache2k.core.IntegrityState;
 import org.cache2k.core.util.TunableConstants;
 import org.cache2k.core.util.TunableFactory;
+import org.cache2k.operation.TimeReference;
 
 /**
  * Eviction algorithm inspired from CLOCK Pro with 3 clocks.
@@ -70,6 +71,11 @@ public class ClockProPlusEviction extends AbstractEviction {
   private long hotMax = Long.MAX_VALUE;
   private long ghostMax = Long.MAX_VALUE;
   private boolean preserveNonExpired = false;
+  private long preserveNonExpiredCapacityLimit = 0;
+  private long preserveYoungerThan = 0;
+  private long preserveYoungerThanCapacityLimit = 0;
+
+  private TimeReference clock;
 
   private static final int GHOST_LOAD_PERCENT;
   private static final int HOT_MAX_PERCENTAGE;
@@ -84,9 +90,9 @@ public class ClockProPlusEviction extends AbstractEviction {
     GHOST_MAX_PERCENTAGE = tunable.ghostMaxPercentage;
   }
 
-  public ClockProPlusEviction(HeapCacheForEviction heapCache, InternalEvictionListener listener,
-                              long maxSize, Weigher weigher, long maxWeight,
-                              boolean noChunking, boolean preserveNonExpired) {
+  public ClockProPlusEviction(HeapCacheForEviction heapCache, InternalEvictionListener listener, long maxSize,
+      Weigher weigher, long maxWeight, boolean noChunking, boolean preserveNonExpired,
+      long preserveNonExpiredCapacityLimit, long preserveYoungerThan, long preserveYoungerThanCapacityLimit, TimeReference clock) {
     super(heapCache, listener, maxSize, weigher, maxWeight, noChunking);
 
     coldSize = 0;
@@ -95,10 +101,17 @@ public class ClockProPlusEviction extends AbstractEviction {
     handHot = null;
     ghosts = new Ghost[4];
     this.preserveNonExpired = preserveNonExpired;
+    this.preserveNonExpiredCapacityLimit = preserveNonExpiredCapacityLimit;
+    this.preserveYoungerThan = preserveYoungerThan;
+    this.preserveYoungerThanCapacityLimit = preserveYoungerThanCapacityLimit;
+
+    this.clock = clock;
   }
 
   private long sumUpListHits(Entry e) {
-    if (e == null) { return 0; }
+    if (e == null) {
+      return 0;
+    }
     long cnt = 0;
     Entry head = e;
     do {
@@ -117,9 +130,9 @@ public class ClockProPlusEviction extends AbstractEviction {
   }
 
   /**
-   * Updates hot max based on current size. This is called when eviction
-   * kicks in so current size is the maximum size this cache should reach
-   * regardless whether we use entry capacity or weigher to limit the size.
+   * Updates hot max based on current size. This is called when eviction kicks in
+   * so current size is the maximum size this cache should reach regardless
+   * whether we use entry capacity or weigher to limit the size.
    */
   @Override
   protected void updateHotMax() {
@@ -181,10 +194,11 @@ public class ClockProPlusEviction extends AbstractEviction {
    * Remove, expire or eviction of an entry happens. Remove the entry from the
    * replacement list data structure.
    *
-   * <p>Why don't generate ghosts here? If the entry is removed because of
-   * a programmatic remove or expiry we should not occupy any resources.
-   * Removing and expiry may also take place when no eviction is needed at all,
-   * which happens when the cache size did not hit the maximum yet. Producing ghosts
+   * <p>
+   * Why don't generate ghosts here? If the entry is removed because of a
+   * programmatic remove or expiry we should not occupy any resources. Removing
+   * and expiry may also take place when no eviction is needed at all, which
+   * happens when the cache size did not hit the maximum yet. Producing ghosts
    * would add additional overhead, when it is not needed.
    */
   @Override
@@ -240,8 +254,8 @@ public class ClockProPlusEviction extends AbstractEviction {
     Ghost g = lookupGhost(e.hashCode);
     if (g != null) {
       /*
-       * don't remove ghosts here, save object allocations.
-       * removeGhost(g, g.hash);  Ghost.removeFromList(g);
+       * don't remove ghosts here, save object allocations. removeGhost(g, g.hash);
+       * Ghost.removeFromList(g);
        */
       ghostHits++;
     }
@@ -255,20 +269,21 @@ public class ClockProPlusEviction extends AbstractEviction {
     handCold = Entry.insertIntoTailCyclicList(handCold, e);
   }
 
-  private Entry runHandHot() {
+  private Entry runHandHot(boolean preserveNonExpiredActive, boolean preserveYoungerThanActive, long now) {
     hotRunCnt++;
     Entry hand = handHot;
     Entry coldCandidate = null;
-    if (!preserveNonExpired) coldCandidate = hand;
+    if (!shouldPreserve(preserveNonExpiredActive, preserveYoungerThanActive, hand, now)) {
+      coldCandidate = hand;
+    }
     long lowestHits = Long.MAX_VALUE;
     long hotHits = this.hotHits;
     int initialMaxScan = (hotSize >> 2) + 1;
     int maxScan = initialMaxScan;
-    long decrease =
-      ((hand.hitCnt + hand.next.hitCnt) >> HIT_COUNTER_DECREASE_SHIFT) + 1;
+    long decrease = ((hand.hitCnt + hand.next.hitCnt) >> HIT_COUNTER_DECREASE_SHIFT) + 1;
     while (maxScan-- > 0) {
       long hitCnt = hand.hitCnt;
-      if (!(preserveNonExpired && hand.isDataAvailable())) {
+      if (!shouldPreserve(preserveNonExpiredActive, preserveYoungerThanActive, hand, now)) {
         if (hitCnt < lowestHits) {
           lowestHits = hitCnt;
           coldCandidate = hand;
@@ -294,14 +309,25 @@ public class ClockProPlusEviction extends AbstractEviction {
     return coldCandidate;
   }
 
+  private boolean shouldPreserve(boolean preserveNonExpiredActive, boolean preserveYoungerThanActive, Entry hand, long now) {
+    return (preserveNonExpiredActive && hand.isDataAvailable()) || (preserveYoungerThanActive && (now - hand.getModificationTime()) < preserveYoungerThan);
+  }
+
   /**
    * Runs cold hand an in turn hot hand to find eviction candidate.
    */
   @Override
   protected Entry findEvictionCandidate() {
+
+    boolean preserveNonExpiredActive = preserveNonExpired
+        && (preserveNonExpiredCapacityLimit == 0 || preserveNonExpiredCapacityLimit > getSize());
+    boolean preserveYoungerThanActive = (preserveYoungerThan > 0)
+        && (preserveYoungerThanCapacityLimit == 0 || preserveYoungerThanCapacityLimit > getSize());
+
+    long now = clock.millis();
     Entry hand = handCold;
     if (hotSize > getHotMax() || hand == null) {
-      return runHandHot();
+      return runHandHot(preserveNonExpiredActive, preserveYoungerThanActive, now);
     }
     coldRunCnt++;
     int scanCnt = 1;
@@ -309,7 +335,7 @@ public class ClockProPlusEviction extends AbstractEviction {
       Entry evictFromHot = null;
       do {
         if (hotSize >= getHotMax() && handHot != null) {
-          evictFromHot = runHandHot();
+          evictFromHot = runHandHot(preserveNonExpiredActive, preserveYoungerThanActive, now);
         }
         coldHits += hand.hitCnt;
         Entry e = hand;
@@ -330,10 +356,10 @@ public class ClockProPlusEviction extends AbstractEviction {
     coldScanCnt += scanCnt;
     if (hand == null) {
       handCold = null;
-      return runHandHot();
+      return runHandHot(preserveNonExpiredActive, preserveYoungerThanActive, now);
     }
     handCold = hand.next;
-    if (preserveNonExpired && hand.isDataAvailable()) {
+    if (shouldPreserve(preserveNonExpiredActive, preserveYoungerThanActive, hand, now)) {
       return null;
     }
     return hand;
@@ -342,31 +368,20 @@ public class ClockProPlusEviction extends AbstractEviction {
   @Override
   public void checkIntegrity(IntegrityState integrityState) {
     integrityState.checkEquals("ghostSize == countGhostsInHash()", ghostSize, countGhostsInHash())
-      .check("checkCyclicListIntegrity(handHot)", Entry.checkCyclicListIntegrity(handHot))
-      .check("checkCyclicListIntegrity(handCold)", Entry.checkCyclicListIntegrity(handCold))
-      .checkEquals("getCyclicListEntryCount(handHot) == hotSize",
-        Entry.getCyclicListEntryCount(handHot), hotSize)
-      .checkEquals("getCyclicListEntryCount(handCold) == coldSize",
-        Entry.getCyclicListEntryCount(handCold), coldSize)
-      .checkEquals("Ghost.listSize(ghostHead) == ghostSize",
-        Ghost.listSize(ghostHead), ghostSize);
+        .check("checkCyclicListIntegrity(handHot)", Entry.checkCyclicListIntegrity(handHot))
+        .check("checkCyclicListIntegrity(handCold)", Entry.checkCyclicListIntegrity(handCold))
+        .checkEquals("getCyclicListEntryCount(handHot) == hotSize", Entry.getCyclicListEntryCount(handHot), hotSize)
+        .checkEquals("getCyclicListEntryCount(handCold) == coldSize", Entry.getCyclicListEntryCount(handCold), coldSize)
+        .checkEquals("Ghost.listSize(ghostHead) == ghostSize", Ghost.listSize(ghostHead), ghostSize);
   }
 
   @Override
   public String getExtraStatistics() {
-    return super.getExtraStatistics() +
-      ", coldSize=" + coldSize +
-      ", hotSize=" + hotSize +
-      ", hotMaxSize=" + getHotMax() +
-      ", ghostSize=" + ghostSize +
-      ", ghostMaxSize=" + getGhostMax() +
-      ", coldHits=" + (coldHits + sumUpListHits(handCold)) +
-      ", hotHits=" + (hotHits + sumUpListHits(handHot)) +
-      ", ghostHits=" + ghostHits +
-      ", coldRunCnt=" + coldRunCnt + // identical to the evictions anyways
-      ", coldScanCnt=" + coldScanCnt +
-      ", hotRunCnt=" + hotRunCnt +
-      ", hotScanCnt=" + hotScanCnt;
+    return super.getExtraStatistics() + ", coldSize=" + coldSize + ", hotSize=" + hotSize + ", hotMaxSize="
+        + getHotMax() + ", ghostSize=" + ghostSize + ", ghostMaxSize=" + getGhostMax() + ", coldHits="
+        + (coldHits + sumUpListHits(handCold)) + ", hotHits=" + (hotHits + sumUpListHits(handHot)) + ", ghostHits="
+        + ghostHits + ", coldRunCnt=" + coldRunCnt + // identical to the evictions anyways
+        ", coldScanCnt=" + coldScanCnt + ", hotRunCnt=" + hotRunCnt + ", hotScanCnt=" + hotScanCnt;
   }
 
   private Ghost lookupGhost(int hash) {
@@ -416,7 +431,6 @@ public class ClockProPlusEviction extends AbstractEviction {
     }
     ghosts = newTab;
   }
-
 
   private boolean removeGhost(Ghost g, int hash) {
     Ghost[] tab = ghosts;
@@ -493,7 +507,9 @@ public class ClockProPlusEviction extends AbstractEviction {
     static int listSize(Ghost head) {
       int count = 0;
       Ghost e = head;
-      while ((e = e.next) != head) { count++; }
+      while ((e = e.next) != head) {
+        count++;
+      }
       return count;
     }
 

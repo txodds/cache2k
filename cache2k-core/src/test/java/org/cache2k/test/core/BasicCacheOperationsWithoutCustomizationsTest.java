@@ -90,20 +90,22 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
 
   static final long START_TIME = System.currentTimeMillis();
 
-  static Pars.Builder pars() { return new Pars.Builder(); }
+  static Pars.Builder pars() {
+    return new Pars.Builder();
+  }
 
   @Parameterized.Parameters(name = "{0}")
   public static Collection<Object[]> data() {
     List<Object[]> l = new ArrayList<Object[]>();
     for (Pars o : new TestVariants()) {
-      l.add(new Object[]{o});
+      l.add(new Object[] { o });
     }
     return l;
   }
 
   /**
-   * Used cache is a class field. We may subclass this class and run the tests with a different
-   * configuration.
+   * Used cache is a class field. We may subclass this class and run the tests
+   * with a different configuration.
    */
   Cache<Integer, Integer> cache;
 
@@ -133,15 +135,15 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
     } else {
       b = Cache2kBuilder.of(Integer.class, Integer.class);
     }
-    b.name(this.getClass().getSimpleName() + "-" + pars.toString().replace('=', '~'))
-      .entryCapacity(1000)
-      .permitNullValues(true)
-      .keepDataAfterExpired(pars.keepDataAfterExpired)
-      .recordModificationTime(pars.recordRefreshTime)
-      .preserveNonExpired(pars.preserveNonExpired)
-      .disableStatistics(pars.disableStatistics);
+    b.name(this.getClass().getSimpleName() + "-" + pars.toString().replace('=', '~')).entryCapacity(1000)
+        .permitNullValues(true).keepDataAfterExpired(pars.keepDataAfterExpired)
+        .recordModificationTime(pars.recordRefreshTime).preserveNonExpired(pars.preserveNonExpired)
+        .preserveNonExpiredCapacityLimit(pars.preserveNonExpiredCapacityLimit)
+        .preserveYoungerThan(pars.preserveYoungerThan)
+        .preserveYoungerThanCapacityLimit(pars.preserveYoungerThanCapacityLimit)
+        .disableStatistics(pars.disableStatistics);
     if (pars.keepExceptions) {
-        b.resiliencePolicy(Constants.resilienceCacheExceptions());
+      b.resiliencePolicy(Constants.resilienceCacheExceptions());
     }
     if (pars.withExpiryAfterWrite) {
       b.expireAfterWrite(TestingParameters.MAX_FINISH_WAIT_MILLIS, TimeUnit.MILLISECONDS);
@@ -170,8 +172,8 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
   }
 
   /**
-   * Wrap into a proxy and check the exceptions on the abstract cache and then use the
-   * forwarding cache.
+   * Wrap into a proxy and check the exceptions on the abstract cache and then use
+   * the forwarding cache.
    */
   protected Cache<Integer, Integer> wrapAbstractAndForwarding(final Cache<Integer, Integer> c) {
     final Cache<Integer, Integer> forwardingCache = new ForwardingCache<Integer, Integer>() {
@@ -190,8 +192,7 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
             fail("exception expected for method: " + method);
           }
         } catch (InvocationTargetException ex) {
-          assertEquals("expected exception",
-            UnsupportedOperationException.class, ex.getTargetException().getClass());
+          assertEquals("expected exception", UnsupportedOperationException.class, ex.getTargetException().getClass());
         }
         try {
           return method.invoke(forwardingCache, args);
@@ -200,10 +201,8 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
         }
       }
     };
-    return (Cache<Integer, Integer>)
-      Proxy.newProxyInstance(
-        getClass().getClassLoader(),
-        new Class<?>[]{Cache.class}, h);
+    return (Cache<Integer, Integer>) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] { Cache.class },
+        h);
   }
 
   public Statistics statistics() {
@@ -938,12 +937,14 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
 
   @Test(expected = NullPointerException.class)
   public void peekAll_NullKey() {
-    cache.peekAll(asList(new Integer[]{null}));
+    cache.peekAll(asList(new Integer[] { null }));
   }
 
   @Test
   public void peekAll_Exception() {
-    if (!pars.keepExceptions) { return; }
+    if (!pars.keepExceptions) {
+      return;
+    }
     assignException(KEY);
     Map<Integer, Integer> m = cache.peekAll(asList(KEY, OTHER_KEY));
     assertEquals(1, m.size());
@@ -1045,7 +1046,7 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
 
   @Test(expected = NullPointerException.class)
   public void getAll_NullKey() {
-    cache.getAll((asList(new Integer[]{null})));
+    cache.getAll((asList(new Integer[] { null })));
   }
 
   @Test
@@ -1507,6 +1508,9 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
     boolean useObjectKey = false;
     boolean withExpiryListener = false;
     boolean preserveNonExpired = false;
+    long preserveNonExpiredCapacityLimit = 0;
+    long preserveYoungerThan = 0;
+    long preserveYoungerThanCapacityLimit = 0;
 
     @Override
     public boolean equals(Object o) {
@@ -1515,18 +1519,36 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
 
       Pars pars = (Pars) o;
 
-      if (strictEviction != pars.strictEviction) return false;
-      if (recordRefreshTime != pars.recordRefreshTime) return false;
-      if (disableStatistics != pars.disableStatistics) return false;
-      if (withEntryProcessor != pars.withEntryProcessor) return false;
-      if (withWiredCache != pars.withWiredCache) return false;
-      if (withForwardingAndAbstract != pars.withForwardingAndAbstract) return false;
-      if (keepDataAfterExpired != pars.keepDataAfterExpired) return false;
-      if (keepExceptions != pars.keepExceptions) return false;
-      if (withExpiryAfterWrite != pars.withExpiryAfterWrite) return false;
-      if (useObjectKey != pars.useObjectKey) return false;
-      if (withExpiryAfterWrite != pars.withExpiryAfterWrite) return false;
-      if (preserveNonExpired != pars.preserveNonExpired) return false;
+      if (strictEviction != pars.strictEviction)
+        return false;
+      if (recordRefreshTime != pars.recordRefreshTime)
+        return false;
+      if (disableStatistics != pars.disableStatistics)
+        return false;
+      if (withEntryProcessor != pars.withEntryProcessor)
+        return false;
+      if (withWiredCache != pars.withWiredCache)
+        return false;
+      if (withForwardingAndAbstract != pars.withForwardingAndAbstract)
+        return false;
+      if (keepDataAfterExpired != pars.keepDataAfterExpired)
+        return false;
+      if (keepExceptions != pars.keepExceptions)
+        return false;
+      if (withExpiryAfterWrite != pars.withExpiryAfterWrite)
+        return false;
+      if (useObjectKey != pars.useObjectKey)
+        return false;
+      if (withExpiryAfterWrite != pars.withExpiryAfterWrite)
+        return false;
+      if (preserveNonExpired != pars.preserveNonExpired)
+        return false;
+      if (preserveNonExpiredCapacityLimit != pars.preserveNonExpiredCapacityLimit)
+        return false;
+      if (preserveYoungerThan != pars.preserveYoungerThan)
+        return false;
+      if (preserveYoungerThanCapacityLimit != pars.preserveYoungerThanCapacityLimit)
+        return false;
       return true;
     }
 
@@ -1544,81 +1566,106 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
       result = 31 * result + (useObjectKey ? 1 : 0);
       result = 31 * result + (withExpiryListener ? 1 : 0);
       result = 31 * result + (preserveNonExpired ? 1 : 0);
+      result = 31 * result + (int) preserveNonExpiredCapacityLimit;
+      result = 31 * result + (int) preserveYoungerThan;
+      result = 31 * result + (int) preserveYoungerThanCapacityLimit;
       return result;
     }
 
     @Override
     public String toString() {
-      return
-        "strict=" + strictEviction +
-        ", recordRefresh=" + recordRefreshTime +
-        ", disableStats=" + disableStatistics +
-        ", entryProcessor=" + withEntryProcessor +
-        ", wired=" + withWiredCache +
-        ", forwarding=" + withForwardingAndAbstract +
-        ", keepData=" + keepDataAfterExpired +
-        ", keepExceptions=" + keepExceptions +
-        ", expiry=" + withExpiryAfterWrite +
-        ", useObjectKey=" + useObjectKey +
-        ", withExpiryListener=" + withExpiryListener +
-        ", preserveNonExpired=" + preserveNonExpired;
+      return "strict=" + strictEviction + ", recordRefresh=" + recordRefreshTime + ", disableStats=" + disableStatistics
+          + ", entryProcessor=" + withEntryProcessor + ", wired=" + withWiredCache + ", forwarding="
+          + withForwardingAndAbstract + ", keepData=" + keepDataAfterExpired + ", keepExceptions=" + keepExceptions
+          + ", expiry=" + withExpiryAfterWrite + ", useObjectKey=" + useObjectKey + ", withExpiryListener="
+          + withExpiryListener + ", preserveNonExpired=" + preserveNonExpired + ", preserveNonExpiredCapacityLimit="
+          + preserveNonExpiredCapacityLimit + ", preserveYoungerThan=" + preserveYoungerThan
+          + ", preserveYoungerThanCapacityLimit=" + preserveYoungerThanCapacityLimit;
     }
 
-    @SuppressWarnings({"SameParameterValue"})
+    @SuppressWarnings({ "SameParameterValue" })
     static class Builder {
 
       Pars pars = new Pars();
 
-      Pars build() { return pars; }
+      Pars build() {
+        return pars;
+      }
 
       Pars.Builder recordRefreshTime(boolean v) {
-        pars.recordRefreshTime = v; return this;
+        pars.recordRefreshTime = v;
+        return this;
       }
 
       Pars.Builder disableStatistics(boolean v) {
-        pars.disableStatistics = v; return this;
+        pars.disableStatistics = v;
+        return this;
       }
 
       Pars.Builder withEntryProcessor(boolean v) {
-        pars.withEntryProcessor = v; return this;
+        pars.withEntryProcessor = v;
+        return this;
       }
 
       Pars.Builder withWiredCache(boolean v) {
-        pars.withWiredCache = v; return this;
+        pars.withWiredCache = v;
+        return this;
       }
 
       Pars.Builder strictEviction(boolean v) {
-        pars.strictEviction = v; return this;
+        pars.strictEviction = v;
+        return this;
       }
 
       Pars.Builder keepDataAfterExpired(boolean v) {
-        pars.keepDataAfterExpired = v; return this;
+        pars.keepDataAfterExpired = v;
+        return this;
       }
 
       Pars.Builder keepExceptions(boolean v) {
-        pars.keepExceptions = v; return this;
+        pars.keepExceptions = v;
+        return this;
       }
 
       public Builder withForwardingAndAbstract(boolean v) {
-        pars.withForwardingAndAbstract = v; return this;
-        }
+        pars.withForwardingAndAbstract = v;
+        return this;
+      }
 
       public Builder withExpiryAfterWrite(boolean v) {
-        pars.withExpiryAfterWrite = v; return this;
+        pars.withExpiryAfterWrite = v;
+        return this;
       }
 
       public Builder useObjectKey(boolean v) {
-        pars.useObjectKey = v; return this;
+        pars.useObjectKey = v;
+        return this;
       }
 
       public Builder withExpiryListener(boolean v) {
-        pars.withExpiryListener = v; return this;
+        pars.withExpiryListener = v;
+        return this;
       }
 
       public Builder withPreserveNonExpired(boolean v) {
-        pars.preserveNonExpired = v; return this;
+        pars.preserveNonExpired = v;
+        return this;
       }
 
+      public Builder withPreserveNonExpiredCapacityLimit(long v) {
+        pars.preserveNonExpiredCapacityLimit = v;
+        return this;
+      }
+
+      public Builder withPreserveYoungerThan(long v) {
+        pars.preserveYoungerThan = v;
+        return this;
+      }
+
+      public Builder withPreserveYoungerThanCapacityLimit(long v) {
+        pars.preserveYoungerThanCapacityLimit = v;
+        return this;
+      }
     }
 
   }
@@ -1630,15 +1677,11 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
 
         @Override
         protected Pars generate() {
-          return new Pars.Builder()
-            .recordRefreshTime(nextBoolean())
-            .disableStatistics(nextBoolean())
-            .withWiredCache(nextBoolean())
-            .keepDataAfterExpired(nextBoolean())
-            .keepExceptions(nextBoolean())
-            .withExpiryAfterWrite(nextBoolean())
-            .withPreserveNonExpired(nextBoolean())
-            .build();
+          return new Pars.Builder().recordRefreshTime(nextBoolean()).disableStatistics(nextBoolean())
+              .withWiredCache(nextBoolean()).keepDataAfterExpired(nextBoolean()).keepExceptions(nextBoolean())
+              .withExpiryAfterWrite(nextBoolean()).withPreserveNonExpired(nextBoolean())
+              .withPreserveNonExpiredCapacityLimit(nextLong()).withPreserveYoungerThan(nextLong())
+              .withPreserveYoungerThanCapacityLimit(nextLong()).build();
         }
 
       });
@@ -1649,6 +1692,9 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
       add(pars().withForwardingAndAbstract(true).build());
       add(pars().withExpiryListener(true).build());
       add(pars().withPreserveNonExpired(true).build());
+      add(pars().withPreserveNonExpiredCapacityLimit(0).build());
+      add(pars().withPreserveYoungerThan(0).build());
+      add(pars().withPreserveYoungerThanCapacityLimit(0).build());
       add(pars().strictEviction(true).build());
     }
 
@@ -1672,6 +1718,10 @@ public class BasicCacheOperationsWithoutCustomizationsTest {
       boolean v = (shiftRight & 0x01) == 1L;
       shiftRight >>>= 1;
       return v;
+    }
+
+    protected final long nextLong() {
+      return nextBoolean() ? 1L : 0L;
     }
 
     protected abstract T generate();
